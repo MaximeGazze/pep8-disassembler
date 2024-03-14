@@ -1,14 +1,3 @@
-// fn char_is_hex(c: &char) -> bool {
-//     match c {
-//         'a'..='f' | 'A'..='F' | '0'..='9' | 'z' => true,
-//         _ => false,
-//     }
-// }
-
-// fn clean_hex_str(s: &str) -> String {
-//     s.chars().filter(char_is_hex).collect()
-// }
-
 const INSTRUCTIONS: [Instruction; 39] = [
     Instruction {
         code: "00000000",
@@ -237,14 +226,8 @@ fn char_hex_to_bin(c: &char) -> String {
     String::from(res)
 }
 
-fn hex_to_bin(s: &str) -> String {
-    let mut res = String::new();
-
-    for c in s.chars() {
-        res.push_str(&char_hex_to_bin(&c));
-    }
-
-    res
+fn hex_to_bin(s: String) -> String {
+    s.chars().map(|c| char_hex_to_bin(&c)).collect()
 }
 
 fn code_matches(instruction_code: &str, code: &str) -> bool {
@@ -281,27 +264,27 @@ fn get_n_param_string(code: &str, instruction: &Instruction) -> String {
 }
 
 fn get_addressing_mode_str(code: &str, instruction: &Instruction) -> String {
-    let mut res = String::new();
+    let mut addressing_mode_bin = String::new();
 
     for (i, c) in instruction.code.chars().enumerate() {
         if c == 'a' {
-            res.push(code.chars().nth(i).unwrap());
+            addressing_mode_bin.push(code.chars().nth(i).unwrap());
         }
     }
 
-    res = match res.as_str() {
-        "000" | "0" => String::from("i"),
-        "001" => String::from("d"),
-        "010" => String::from("n"),
-        "011" => String::from("s"),
-        "100" => String::from("sf"),
-        "101" | "1" => String::from("x"),
-        "110" => String::from("sx"),
-        "111" => String::from("sxf"),
+    let res = match addressing_mode_bin.as_str() {
+        "000" | "0" => "i",
+        "001" => "d",
+        "010" => "n",
+        "011" => "s",
+        "100" => "sf",
+        "101" | "1" => "x",
+        "110" => "sx",
+        "111" => "sxf",
         _ => panic!("Invalid addressing mode"),
     };
 
-    res
+    String::from(res)
 }
 
 fn get_next_instruction(instruction: &str) -> Option<&Instruction> {
@@ -323,33 +306,39 @@ fn disassemble(code: &str) {
             .replace('r', &get_register_char(code_slice, instruction).to_string())
             .replace('n', &get_n_param_string(code_slice, instruction));
 
+        let code_slice_dec = i32::from_str_radix(&code_slice, 2).unwrap();
+
         if instruction.is_short {
-            println!("         {assembly_instruction}");
+            println!(
+                "         {assembly_instruction: <27};{index: <5} {0: <#5X} | {code_slice: <24} | {code_slice_dec:0<2X}",
+                index / 8
+            );
+
             index += 8;
         } else {
             let address = String::from(&code[index + 8..index + 24]);
             let digit_address = i32::from_str_radix(&address, 2).unwrap();
             let addressing_mode = get_addressing_mode_str(code_slice, instruction);
-            println!("         {assembly_instruction: <7} {digit_address:#06X},{addressing_mode: <11} ;{index}");
+
+            let address_start = i32::from_str_radix(&address[0..8], 2).unwrap();
+            let address_end = i32::from_str_radix(&address[8..16], 2).unwrap();
+
+            println!(
+                "         {assembly_instruction: <7} {digit_address:#06X},{addressing_mode: <11} ;{index: <5} {0: <#5X} | {code_slice}{address} | {code_slice_dec:0<2X} {address_start:0<2X} {address_end:0<2X}",
+                index / 8
+            );
+
             index += 24;
         }
     }
 }
 
 fn main() {
-    let code = "C0 00 00 41 00 7F 31 00 A5 C9 00 A5 B8 04 D2 0C
-00 15 70 00 01 41 00 85 31 00 A7 C9 00 A7 78 00
-03 89 00 7B B9 00 7D 0C 00 2D 70 00 01 41 00 8B
-31 00 A9 CA 00 A9 B8 05 F4 0C 00 3F 70 00 01 41
-00 91 31 00 AB C9 00 AB 06 00 77 1B E9 00 52 C8
-FF 33 28 00 E1 B8 21 21 0C 00 77 B0 00 03 0C 00
-77 41 00 97 39 00 A5 39 00 A7 39 00 A9 39 00 AB
-50 00 7D 50 00 0A 00 41 00 9D 00 02 64 05 F3 4E
-49 50 31 3A 00 4E 49 50 32 3A 00 4E 49 50 33 3A
-00 4E 49 50 34 3A 00 46 4C 41 47 7B 00 45 72 72
-65 75 72 0A 00 00 00 00 00 00 00 00 00 zz
-";
-
-    let bin = hex_to_bin(code);
-    disassemble(&bin);
+    if let Some(input_file_path) = std::env::args().nth(1) {
+        let code = std::fs::read_to_string(input_file_path).expect("Invalid file path");
+        let bin = hex_to_bin(code);
+        disassemble(&bin);
+    } else {
+        panic!("No input file provided");
+    }
 }
