@@ -324,12 +324,13 @@ fn disassemble(code: &str) {
             .replace('n', &get_n_param_string(code_slice, instruction));
 
         if instruction.is_short {
-            println!("{assembly_instruction}");
+            println!("         {assembly_instruction}");
             index += 8;
         } else {
             let address = String::from(&code[index + 8..index + 24]);
+            let digit_address = i32::from_str_radix(&address, 2).unwrap();
             let addressing_mode = get_addressing_mode_str(code_slice, instruction);
-            println!("{assembly_instruction} {address},{addressing_mode}");
+            println!("         {assembly_instruction: <7} {digit_address:#06X},{addressing_mode: <11} ;{index}");
             index += 24;
         }
     }
@@ -351,6 +352,4 @@ FF 33 28 00 E1 B8 21 21 0C 00 77 B0 00 03 0C 00
 
     let bin = hex_to_bin(code);
     disassemble(&bin);
-
-    println!("{bin}");
 }
